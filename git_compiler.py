@@ -9,13 +9,13 @@ class GitCompiler:
     '''Initialize'''
     self.git_manager = GitManager(repo)
     self.commit_targets = []
-    self.compilation_options = dict(build_directory = build_directory)
-    self.linking_options = {}
     self.build_directory = os.path.abspath(build_directory)
+    self.compilation_options = dict(build_directory = self.build_directory)
+    self.linking_options = {}
     os.environ.update(env)
 
   def add_commit_targets(self, **kwargs):
-    '''Add commit targets to compile.''' #TODO think about how to specify commits
+    '''Add commit targets to compile.'''
     self.commit_targets.extend(self.git_manager.get_commits(**kwargs))
 
   # TODO remove_commit_targets
@@ -23,24 +23,25 @@ class GitCompiler:
   def set_compilation_task(self, task, **kwargs):
     '''Set the compilation task (the thing that'll compile each commit)'''
     self.compilation_task = task
-    self.compilation_options = kwargs or self.compilation_options
+    if kwargs:
+      self.compilation_options.update(kwargs)
 
   def set_linking_task(self, task, **kwargs):
     '''Set the linking task (the thing that'll link the outputs of the compilation task)'''
     self.linking_task = task
-    self.linking_options = kwargs or self.linking_options
+    if kwargs:
+      self.linking_options.update(kwargs)
 
-  def compile(self, link=True):
-    '''Compile (and link unless specified otherwise)! 
-       (Works inside the root of the repo)
+  def compile(self, link=True, **additional_compilation_args):
+    '''Compile (and link unless specified otherwise)!
        TODO: Thread this out with an observer to output progress.
     '''
-    current_directory = os.getcwd()
-    os.chdir(self.git_manager.repo.working_dir)
-    self.compilation_output = self.compilation_task(self.commit_targets, self.compilation_options)
+    options = self.compilation_options.copy()
+    if additional_compilation_args:
+      options.update(additional_compilation_args)
+    self.compilation_output = self.compilation_task(self.commit_targets, options, self.git_manager)
     if link: 
       self.link(self.compilation_output)
-    os.chdir(current_directory)
 
   def link(self, compilation_output):
     '''Link compilation output!'''
