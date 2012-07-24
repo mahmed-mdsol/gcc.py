@@ -1,3 +1,6 @@
+import os, errno
+import datetime
+import sys
 
 # TODO Make this observable with fired events instead of having silly hooks.
 class Task(object):
@@ -33,7 +36,11 @@ class CompilationTask(Task):
 
   def precompile(self, commit):
     '''Executed before the given commit is compiled.'''
-    pass
+    try:
+      os.makedirs(self.output_directory_for(commit))
+    except OSError as e:
+      if e.errno != errno.EEXIST:
+        raise
 
   def compile(self, commit):
     '''Performs the actual compilation of the commit. (This is the one you definitely have to implement)'''
@@ -51,6 +58,29 @@ class CompilationTask(Task):
     '''Return whether or not the given commit should be compiled. Useful to prevent recompiling commits.'''
     return True
 
+  def output_directory_for(self, commit):
+    return os.path.join(self.options['build_directory'], str(commit), self.__class__.__name__) #./build/abcdef90293901.../
+
+  def incomplete_compilation_file(self, commit):
+    return os.path.join(self.output_directory_for(commit), 'incomplete')
+
+  def has_incomplete_output_for(self, commit):
+    return os.path.isfile(self.incomplete_compilation_file(self))
+
+  def mark_incomplete(self, commit, exception=None):
+    '''Write out an incomplete file marking the commit compilation as incomplete.'''
+    f = open(self.incomplete_compilation_file(commit), 'a')
+    print >> f, str(commit)
+    print >> f, "By:", str(commit.author), "on", str(datetime.datetime.fromtimestamp(commit.committed_date))
+    print >> f, commit.message
+    if exception:
+      print >> f, "Exception:", repr(exception)
+    f.close()
+
+  def log(self, msg):
+    sys.stderr.write("=====> [COMPILATION][{0}]: {1}\n".format(self.__class__.__name__, str(msg)))
+
+
   def perform(self, commit_targets, compilation_options, git_manager):
     self.targets = commit_targets
     self.options = compilation_options
@@ -59,6 +89,9 @@ class CompilationTask(Task):
 
     for commit in commit_targets:
       if self.should_compile(commit):
+        self.log("Compiling " + str(commit))
+        self.log(commit.message)
+        self.git_manager.switch_to(commit)
         self.precompile(commit)
         results[commit] = self.compile(commit)
         self.postcompile(commit)
@@ -91,7 +124,7 @@ class LinkingTask(Task):
     return result
 
 
-def CompositeTask(Task):
+class CompositeTask(Task):
   def __init__(self, pre_task = None, post_task = None, *tasks):
     self.tasks = tasks
     Task.__init__(self, pre_task, post_task)
@@ -99,6 +132,6 @@ def CompositeTask(Task):
   def perform(self, *args, **kwargs):
     output = []
     for task in self.tasks:
-      output.append(task.perform(*args, **kwargs))
+      output.append(task(*args, **kwargs))
     return output
 

@@ -1,5 +1,4 @@
 from tasks.task import CompilationTask, LinkingTask
-import datetime
 import os
 import shlex
 import subprocess
@@ -34,10 +33,10 @@ class SystemTask(object):
     cmd = self.command_maker(task_input, options)
     return self.popen_options['shell'] and cmd or shlex.split(self.command_maker(task_input, options))
 
-
 class SystemCompilationTask(CompilationTask, SystemTask):
 
-  # TODO this isn't a very nice way to do this. Implement event obvservers for tasks instead.
+  # TODO this is horrible. You call yourself a programmer? 
+  # Implement event observers for tasks instead.
   def __init__(self, precompilation_commands = [], precompile_commands = [], postcompile_commands = [], postcompilation_commands = [], *args, **kwargs):
     CompilationTask.__init__(self)
     SystemTask.__init__(self, *args, **kwargs)
@@ -45,6 +44,19 @@ class SystemCompilationTask(CompilationTask, SystemTask):
     self.precompile_commands = precompile_commands
     self.postcompile_commands = postcompile_commands
     self.postcompilation_commands = postcompilation_commands
+
+  def mark_incomplete_on_fail(f):
+    '''Decorator to mark a commit compilation task incomplete if an exception was raised.'''
+    def wrapped(self, commit, *args, **kwargs):
+      try:
+        f(self, commit, *args, **kwargs) # Call the wrapped function
+      except Exception as e:
+        self.mark_incomplete(commit, e)
+        if self.stop_on_exception:
+          raise
+        else:
+          self.log("Exception ignored: {0}\n".format(repr(e)))
+    return wrapped
 
   def precompilation(self):
     if self.work_in_git_dir:
@@ -57,50 +69,27 @@ class SystemCompilationTask(CompilationTask, SystemTask):
     for command in commands:
       self.execute(command, **self.popen_options)
 
-  def output_directory_for(self, commit):
-    return os.path.join(self.options['build_directory'], str(commit)) #./build/abcdef90293901.../
-
-  def incomplete_compilation_file(self, commit):
-    return os.path.join(self.output_directory_for(commit), 'incomplete')
-
-  def has_incomplete_output_for(self, commit):
-    return os.path.isfile(self.incomplete_compilation_file(self))
-
-  def mark_incomplete(self, commit, exception=None):
-    '''Write out an incomplete file marking the commit compilation as incomplete.'''
-    f = open(self.incomplete_compilation_file(commit), 'w')
-    print >> f, str(commit)
-    print >> f, "By:", str(commit.author), "on", str(datetime.datetime.fromtimestamp(1284286794))
-    print >> f, commit.message
-    if exception:
-      print >> f, "Exception:", repr(exception)
-    f.close()
-
   def should_compile(self, commit):
     '''Compile if there is no output directory for the commit or if the compilation is incomplete.'''
     return not os.path.isdir(self.output_directory_for(commit)) or self.has_incomplete_output_for(commit)
 
+  @mark_incomplete_on_fail
   def precompile(self, commit):
+    CompilationTask.precompile(self, commit)
     self.options.update(output_directory = self.output_directory_for(commit))
-    os.makedirs(self.options['output_directory'])
     self.execute_all(self.precompile_commands)
 
+  @mark_incomplete_on_fail
   def compile(self, commit):
-    try:
-      self.execute(self.get_command(commit, self.options), **self.popen_options)
-      return os.listdir(self.output_directory_for(commit))
-    except Exception as e:
-      if self.stop_on_exception:
-        self.mark_incomplete(commit, e)
-        raise
-      else:
-        sys.stderr.write("Exception ignored: {0}\n".format(e.message))
+    self.execute(self.get_command(commit, self.options), **self.popen_options)
+    return os.listdir(self.output_directory_for(commit))
 
   def __call__(self, targets, options, git_manager, *args, **kwargs):
     ''':[ This is terrible. You're an awful programmer.'''
-    self.targets, self.options, self.git_manager = git_manager = targets, options, git_manager
+    self.targets, self.options, self.git_manager = targets, options, git_manager
     CompilationTask.__call__(self, targets, options, git_manager, *args, **kwargs)
 
+  @mark_incomplete_on_fail
   def postcompile(self, commit):
     self.execute_all(self.postcompile_commands)
 
