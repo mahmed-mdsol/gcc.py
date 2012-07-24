@@ -60,17 +60,23 @@ class GitManager:
 
   def switch_to(self, ref):
     '''Checkout the given ref (could be a branch name, tag name, commit number, etc) in the working directory.'''
-    self.ref = self.repo.refs[ref].checkout()
+    self.ref = ref
+    self.git.checkout(self.ref)
     return self.ref
 
   @property
   def first_commit(self):
     '''Get the first commit chronologically (the commit you'd get with git rev-list --reverse HEAD | head -1)'''
-    return self.repo.iter_commits(rev=self.ref, reverse=True).next()
+    return self.get_commits(rev=self.ref, reverse=True).next()
 
   @property
   def last_commit(self):
     '''Get the last commit chronologically (i.e. HEAD)'''
     return self.repo.head.commit
+
+  def first_commit_for(self, filename):
+    '''Get the first commit for a given file.'''
+    return self.get_commits(paths=filename, reverse=True).next()
+
 
 
