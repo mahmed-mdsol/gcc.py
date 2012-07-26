@@ -18,6 +18,11 @@ class Task(object):
   def post_task(self, *args):
     pass
 
+  @staticmethod
+  def log(msg):
+    sys.stderr.write("=====> {0}\n".format(msg))
+
+
   def __call__(self, *args, **kwargs):
     '''Tasks should be executed by calling them rather than calling perform directly.'''
     self.pre_task()
@@ -65,7 +70,7 @@ class CompilationTask(Task):
     return os.path.join(self.output_directory_for(commit), 'incomplete')
 
   def has_incomplete_output_for(self, commit):
-    return os.path.isfile(self.incomplete_compilation_file(self))
+    return os.path.isfile(self.incomplete_compilation_file(commit))
 
   def mark_incomplete(self, commit, exception=None):
     '''Write out an incomplete file marking the commit compilation as incomplete.'''
@@ -78,7 +83,7 @@ class CompilationTask(Task):
     f.close()
 
   def log(self, msg):
-    sys.stderr.write("=====> [COMPILATION][{0}]: {1}\n".format(self.__class__.__name__, str(msg)))
+    Task.log("[COMPILATION][{0}]: {1}".format(self.__class__.__name__, str(msg)))
 
 
   def perform(self, commit_targets, compilation_options, git_manager):
@@ -112,7 +117,11 @@ class LinkingTask(Task):
   def postlinkage(self):
     pass
 
-  def perform(self, compilation_output, linking_options, git_manager):
+  def log(self, msg):
+    Task.log("[LINKING][{0}]: {1}".format(self.__class__.__name__, str(msg)))
+
+  def perform(self, commit_targets, compilation_output, linking_options, git_manager):
+    self.commit_targets = commit_targets
     self.compilation_output = compilation_output
     self.linking_options = linking_options
     self.git_manager = git_manager

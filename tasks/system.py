@@ -4,6 +4,14 @@ import shlex
 import subprocess
 import sys
 
+import fnmatch
+def find_files(directory, pattern):
+  for root, dirs, files in os.walk(directory):
+    for basename in files:
+      if fnmatch.fnmatch(basename, pattern):
+        filename = os.path.join(root, basename)
+        yield filename
+
 class SystemTask(object):
   
   def __init__(self, command_maker, shell=False, work_in_git_dir=False, stop_on_exception = False, log_stdout=None, log_stderr=None): # TODO support STDIN
@@ -82,7 +90,7 @@ class SystemCompilationTask(CompilationTask, SystemTask):
   @mark_incomplete_on_fail
   def compile(self, commit):
     self.execute(self.get_command(commit, self.options), **self.popen_options)
-    return os.listdir(self.output_directory_for(commit))
+    return find_files(self.output_directory_for(commit), '*')
 
   def __call__(self, targets, options, git_manager, *args, **kwargs):
     ''':[ This is terrible. You're an awful programmer.'''

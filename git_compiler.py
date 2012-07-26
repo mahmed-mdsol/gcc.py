@@ -45,5 +45,5 @@ class GitCompiler:
 
   def link(self, compilation_output):
     '''Link compilation output!'''
-    self.linking_task.perform(compilation_output, self.linking_options)
+    self.linking_task(self.commit_targets, compilation_output, self.linking_options, self.git_manager)
 
