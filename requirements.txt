@@ -1,4 +1,5 @@
 GitPython   == 0.3.2.RC1
 pytest
+colorama
 #pil
 #pyopencv

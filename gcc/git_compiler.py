@@ -18,7 +18,10 @@ class GitCompiler:
     '''Add commit targets to compile.'''
     self.commit_targets.extend(self.git_manager.get_commits(**kwargs))
 
-  # TODO remove_commit_targets
+  def remove_commit_targets(filter_function):
+    '''Remove commit targets that cause the given function to return a truthy value.'''
+    self.commit_targets[:] = [commit for commit in self.commit_targets if not filter_function(commit)]
+
 
   def set_compilation_task(self, task, **kwargs):
     '''Set the compilation task (the thing that'll compile each commit)'''
