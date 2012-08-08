@@ -1,16 +1,9 @@
-from tasks.task import CompilationTask, LinkingTask
+from gcc.tasks.task import CompilationTask, LinkingTask
 import os
 import shlex
 import subprocess
 import sys
-
-import fnmatch
-def find_files(directory, pattern):
-  for root, dirs, files in os.walk(directory):
-    for basename in files:
-      if fnmatch.fnmatch(basename, pattern):
-        filename = os.path.join(root, basename)
-        yield filename
+from gcc.util import find_files
 
 class SystemTask(object):
   

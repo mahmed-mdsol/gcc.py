@@ -20,7 +20,7 @@ class Task(object):
 
   @staticmethod
   def log(msg):
-    sys.stderr.write("=====> {0}\n".format(msg))
+    sys.stderr.write("{0} ==>\t{1}\n".format(datetime.datetime.now(), msg))
 
 
   def __call__(self, *args, **kwargs):
@@ -28,6 +28,7 @@ class Task(object):
     self.pre_task()
     self.result = self.perform(*args, **kwargs)
     self.post_task()
+    return self.result
 
 class CompilationTask(Task):
 
@@ -91,16 +92,17 @@ class CompilationTask(Task):
     self.options = compilation_options
     self.git_manager = git_manager
     results = {}
-
+    self.log("Beginning compilation of {0} commit targets.".format(len(list(commit_targets))))
     for commit in commit_targets:
       if self.should_compile(commit):
         self.log("Compiling " + str(commit))
         self.log(commit.message)
+        self.log("Committed at {0}".format(datetime.datetime.fromtimestamp(commit.committed_date)))
         self.git_manager.switch_to(commit)
         self.precompile(commit)
         results[commit] = self.compile(commit)
         self.postcompile(commit)
-
+        self.log("|====|")
     return results
 
 class LinkingTask(Task):

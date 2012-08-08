@@ -3,7 +3,7 @@ import git
 class GitManager:
   '''GitManager will help manage your repo with helpful utility methods'''
 
-  PULL_REQUEST_FILTER = lambda commit: commit.summary.find("Merge pull request #") == 0
+  PULL_REQUEST_FILTER = lambda self, commit: commit.summary.find("Merge pull request #") == 0
 
   def __init__(self, repo):
     '''Initialize the GitManager with the given local repo''' # TODO add ability to clone repos.
