@@ -1,0 +1,20 @@
+#!/bin/bash
+
+source ~/.bash_profile
+rvm use 1.8.7-p174
+export RAILS_ENV=test
+
+cp config/database.yml.sample config/database.yml
+  
+rm -rf vendor/plugins/{acts_as_auditable,imedidata_client,rubycas-client,shamus,watirworld}
+git submodule update --init
+
+#cp config/database.yml.sample config/database.yml
+bundle install
+
+RAILS_ENV=test ./bundle rake db:drop db:create --trace
+
+# Need to do this twice due to some weird chicken-and-egg migration that happens halfway through. :/
+./bundle rake db:migrate --trace
+./bundle rake db:seed --trace
+./bundle rake db:migrate --trace

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+source ~/.bash_profile
+rvm use 1.8.7-p174
+export RAILS_ENV=test
+cd ..
+cd - # Activate the .rvmrc if it was there
+
+cp config/database.yml.sample config/database.yml
+  
+rm -rf vendor/plugins/{acts_as_auditable,imedidata_client,rubycas-client,shamus,watirworld}
+git submodule update --init
+
+#cp config/database.yml.sample config/database.yml
+bundle install
+
+RAILS_ENV=test ./bundle rake db:drop db:create --trace
+
+# Need to do this twice due to some weird chicken-and-egg migration that happens halfway through. :/
+bundle exec rake db:migrate --trace
+bundle exec rake db:seed --trace
+bundle exec rake db:migrate --trace
+
+bundle exec cucumber -r $COLUMBO_RB --format=pretty --format=Shamus::Columbo --out $COLUMBO_OUTPUT -r features/support/default_selenium.rb -t $CUCUMBER_TAGS
+
+
