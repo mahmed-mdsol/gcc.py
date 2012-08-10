@@ -1,6 +1,7 @@
 import os, errno
 import datetime
 import sys
+import codecs
 
 # TODO Make this observable with fired events instead of having silly hooks.
 class Task(object):
@@ -84,7 +85,10 @@ class CompilationTask(Task):
     f.close()
 
   def log(self, msg):
-    Task.log("[COMPILATION][{0}]: {1}".format(self.__class__.__name__, str(msg)))
+    try:
+      Task.log("[COMPILATION][{0}]: {1}".format(self.__class__.__name__, msg))
+    except Exception as e:
+      print "Error logging: {0}".format(e)
 
 
   def perform(self, commit_targets, compilation_options, git_manager):
@@ -94,15 +98,22 @@ class CompilationTask(Task):
     results = {}
     self.log("Beginning compilation of {0} commit targets.".format(len(list(commit_targets))))
     for commit in commit_targets:
-      if self.should_compile(commit):
-        self.log("Compiling " + str(commit))
-        self.log(commit.message)
-        self.log("Committed at {0}".format(datetime.datetime.fromtimestamp(commit.committed_date)))
-        self.git_manager.switch_to(commit)
-        self.precompile(commit)
-        results[commit] = self.compile(commit)
-        self.postcompile(commit)
-        self.log("|====|")
+      try:
+        if self.should_compile(commit):
+          self.log("Compiling " + str(commit))
+          self.log(commit.message)
+          self.log("Committed at {0}".format(datetime.datetime.fromtimestamp(commit.committed_date)))
+          if 'checkout' in compilation_options and compilation_options['checkout']:
+            self.git_manager.switch_to(commit)
+          self.precompile(commit)
+          results[commit] = self.compile(commit)
+          self.postcompile(commit)
+          self.log("|====|")
+      except Exception as e:
+        if 'ignore_exceptions' in compilation_options and compilation_options['ignore_exceptions']:
+          pass
+        else:
+          raise e
     return results
 
 class LinkingTask(Task):
