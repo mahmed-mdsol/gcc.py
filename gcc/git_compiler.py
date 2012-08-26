@@ -35,7 +35,7 @@ class GitCompiler:
     if kwargs:
       self.linking_options.update(kwargs)
 
-  def compile(self, link=True, **additional_compilation_args):
+  def compile(self, link=False, **additional_compilation_args):
     '''Compile (and link unless specified otherwise)!
        TODO: Thread this out with an observer to output progress.
     '''
