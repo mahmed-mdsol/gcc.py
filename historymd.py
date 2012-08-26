@@ -71,6 +71,6 @@ if __name__ == '__main__':
   compiler.add_commit_targets(from_ref=git.first_commit, to_ref=git.last_commit, filter_function=git.PULL_REQUEST_FILTER)
   compiler.set_compilation_task(PRCollect())
   compiler.set_linking_task(HistoryMDLinker())
-  compiler.compile()
+  compiler.compile(link=True)
 
 

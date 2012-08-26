@@ -2,13 +2,18 @@ import os, errno
 import datetime
 import sys
 import codecs
+from gcc.util import dynamically_extend
 
 # TODO Make this observable with fired events instead of having silly hooks.
 class Task(object):
 
-  def __init__(self, pre_task = None, post_task = None):
-    if pre_task: self.pre_task = pre_task
-    if post_task: self.post_task = post_task
+  def __init__(self, delegate = None):
+    '''
+    Initialize this task with an optional delegate.
+    The delegate will be dynamically extended with the task's class so that it inherits all of its methods.
+    NOTE: the delegate must be an instance of a new-style class (i.e. it inherits from object or a class that does)
+    '''
+    self.delegate = delegate and dynamically_extend(delegate, self.__class__) or None
 
   def pre_task(self, *args):
     pass
@@ -26,20 +31,21 @@ class Task(object):
 
   def __call__(self, *args, **kwargs):
     '''Tasks should be executed by calling them rather than calling perform directly.'''
-    self.pre_task()
-    self.result = self.perform(*args, **kwargs)
-    self.post_task()
+    # Decide on a target for task calls. This is so that tasks don't have to inherit from task directly, 
+    # but can implement the hooks necessary to be considered a task when passed in as delegates.
+    target = self.delegate or self
+    target.pre_task()
+    self.result = target.perform(*args, **kwargs)
+    target.post_task()
     return self.result
 
-class CompilationTask(Task):
 
-  def __init__(self):
-    '''Initializes the task with precompilation and postcompilation as pre and post task callbacks'''
-    Task.__init__(self, self.precompilation, self.postcompilation)
+class CompilationTask(Task):
 
   def precompilation(self):
     '''Executed before compilation of commits begin.'''
     pass
+  pre_task = precompilation # hook the precompilation function as Task's pre_task callback.
 
   def precompile(self, commit):
     '''Executed before the given commit is compiled.'''
@@ -73,6 +79,7 @@ class CompilationTask(Task):
   def postcompilation(self):
     '''Performed after all compilation has occurred'''
     pass
+  post_task = postcompilation # hook the postcompilation function as Task's post_task callback.
 
   def should_ignore_exception(self, e):
     '''Return whether or not this exception occurring during compilation should be ignored.'''
@@ -132,17 +139,16 @@ class CompilationTask(Task):
 
 class LinkingTask(Task):
 
-  def __init__(self):
-    Task.__init__(self, self.prelinkage, self.postlinkage)
-
   def prelinkage(self):
     pass
+  pre_task = prelinkage
 
   def link(self, compilation_output, linking_options):
     return None
 
   def postlinkage(self):
     pass
+  post_task = postlinkage
 
   def log(self, msg):
     Task.log("[LINKING][{0}]: {1}".format(self.__class__.__name__, str(msg)))
@@ -164,7 +170,9 @@ class LinkingTask(Task):
 class CompositeTask(Task):
   def __init__(self, pre_task = None, post_task = None, *tasks):
     self.tasks = tasks
-    Task.__init__(self, pre_task, post_task)
+    self.pre_task = pre_task
+    self.post_task = post_task
+    Task.__init__(self)
 
   def perform(self, *args, **kwargs):
     output = []
