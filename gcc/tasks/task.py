@@ -64,6 +64,11 @@ class CompilationTask(Task):
     '''Return whether or not this commit should be checked out.'''
     return True
 
+  def should_do_forceful_checkouts(self):
+    '''Return whether or not you should do forceful checkouts (i.e. clear untracked files, overwrite changes, etc)
+       Note that if you return True here, I can't guarantee the safety of any of your files. You have been warned.'''
+    return False
+
   def should_create_output_directory(self):
     '''Return whether or not an output directory should be created for each commit'''
     return True
@@ -123,7 +128,7 @@ class CompilationTask(Task):
           self.log(commit.message)
           self.log("Committed at {0}".format(datetime.datetime.fromtimestamp(commit.committed_date)))
           if self.should_checkout(commit):
-            self.git_manager.switch_to(commit)
+            self.git_manager.switch_to(commit, force=self.should_do_forceful_checkouts())
           self.precompile(commit)
           results[commit] = self.compile(commit)
           self.postcompile(commit)

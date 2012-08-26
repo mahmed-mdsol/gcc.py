@@ -58,10 +58,14 @@ class GitManager:
         if filter_function(commit):
           yield commit
 
-  def switch_to(self, ref):
+  def switch_to(self, ref, force=False):
     '''Checkout the given ref (could be a branch name, tag name, commit number, etc) in the working directory.'''
     self.ref = ref
-    self.git.checkout(self.ref)
+    if force:
+      self.git.clean(d=True, f=True)
+      self.git.checkout(self.ref, f=True)
+    else:
+      self.git.checkout(self.ref)
     return self.ref
 
   @property
