@@ -22,6 +22,10 @@ class PRCollect(CompilationTask):
     # Sure, why not, I don't really care. :P
     return True
 
+  def should_create_output_directory(self):
+    # We don't need to write out output for this task
+    return False
+
   def compile(self, commit):
     pr_match = self.pr_title.match(commit.message)
     tag_match = self.tag.findall(self.describe(commit) or "")

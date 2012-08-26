@@ -44,7 +44,8 @@ class CompilationTask(Task):
   def precompile(self, commit):
     '''Executed before the given commit is compiled.'''
     try:
-      os.makedirs(self.output_directory_for(commit))
+      if self.should_create_output_directory():
+        os.makedirs(self.output_directory_for(commit))
     except OSError as e:
       if e.errno != errno.EEXIST:
         raise
@@ -55,6 +56,10 @@ class CompilationTask(Task):
 
   def should_checkout(self, commit):
     '''Return whether or not this commit should be checked out.'''
+    return True
+
+  def should_create_output_directory(self):
+    '''Return whether or not an output directory should be created for each commit'''
     return True
 
   def compile(self, commit):
