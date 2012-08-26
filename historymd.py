@@ -12,7 +12,15 @@ class PRCollect(CompilationTask):
     try:
       return self.git_manager.git.describe(commit, contains=True)
     except:
-      None
+      return None
+
+  def should_checkout(self, commit):
+    # We don't need to checkout the commit to gather info about it, so always return False.
+    return False
+
+  def should_ignore_exception(self, e):
+    # Sure, why not, I don't really care. :P
+    return True
 
   def compile(self, commit):
     pr_match = self.pr_title.match(commit.message)
@@ -20,7 +28,7 @@ class PRCollect(CompilationTask):
     title = None
     tag = tag_match and tag_match[0] or None
     if pr_match:
-      title = "{1}".format(pr_match.group(1), pr_match.group(2))
+      title = "{0} - {1}".format(pr_match.group(1).encode('utf-8'), pr_match.group(2).encode('utf-8'))
     self.log("Tag matched: {0}".format(tag))
     return (tag, title)
 
@@ -57,7 +65,7 @@ if __name__ == '__main__':
   compiler = GitCompiler(len(sys.argv) > 1 and sys.argv[1] or ".") # Take the first argument as the repo path or assume the current directory is the repo if no args are provided.
   git = compiler.git_manager
   compiler.add_commit_targets(from_ref=git.first_commit, to_ref=git.last_commit, filter_function=git.PULL_REQUEST_FILTER)
-  compiler.set_compilation_task(PRCollect(), checkout=False, ignore_exceptions=True)
+  compiler.set_compilation_task(PRCollect())
   compiler.set_linking_task(HistoryMDLinker())
   compiler.compile()
 

@@ -49,6 +49,14 @@ class CompilationTask(Task):
       if e.errno != errno.EEXIST:
         raise
 
+  def should_compile(self, commit):
+    '''Return whether or not the given commit should be compiled. Useful to prevent recompiling commits.'''
+    return True
+
+  def should_checkout(self, commit):
+    '''Return whether or not this commit should be checked out.'''
+    return True
+
   def compile(self, commit):
     '''Performs the actual compilation of the commit. (This is the one you definitely have to implement)'''
     return None
@@ -61,9 +69,9 @@ class CompilationTask(Task):
     '''Performed after all compilation has occurred'''
     pass
 
-  def should_compile(self, commit):
-    '''Return whether or not the given commit should be compiled. Useful to prevent recompiling commits.'''
-    return True
+  def should_ignore_exception(self, e):
+    '''Return whether or not this exception occurring during compilation should be ignored.'''
+    return False
 
   def output_directory_for(self, commit):
     return os.path.join(self.options['build_directory'], str(commit), self.__class__.__name__) #./build/abcdef90293901.../
@@ -90,7 +98,6 @@ class CompilationTask(Task):
     except Exception as e:
       print "Error logging: {0}".format(e)
 
-
   def perform(self, commit_targets, compilation_options, git_manager):
     self.targets = commit_targets
     self.options = compilation_options
@@ -103,17 +110,19 @@ class CompilationTask(Task):
           self.log("Compiling " + str(commit))
           self.log(commit.message)
           self.log("Committed at {0}".format(datetime.datetime.fromtimestamp(commit.committed_date)))
-          if 'checkout' in compilation_options and compilation_options['checkout']:
+          if self.should_checkout(commit):
             self.git_manager.switch_to(commit)
           self.precompile(commit)
           results[commit] = self.compile(commit)
           self.postcompile(commit)
-          self.log("|====|")
+          self.log("|====|\n")
       except Exception as e:
-        if 'ignore_exceptions' in compilation_options and compilation_options['ignore_exceptions']:
+        if self.should_ignore_exception(e):
+          self.log("Ignoring exception: {0}".format(e))
           pass
         else:
-          raise e
+          exc_info = sys.exc_info()
+          raise exc_info[0], exc_info[1], exc_info[2]
     return results
 
 class LinkingTask(Task):
@@ -134,6 +143,7 @@ class LinkingTask(Task):
     Task.log("[LINKING][{0}]: {1}".format(self.__class__.__name__, str(msg)))
 
   def perform(self, commit_targets, compilation_output, linking_options, git_manager):
+    '''Link the given compilation output.'''
     self.commit_targets = commit_targets
     self.compilation_output = compilation_output
     self.linking_options = linking_options
