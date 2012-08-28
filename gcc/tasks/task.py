@@ -13,7 +13,7 @@ class Task(object):
     The delegate will be dynamically extended with the task's class so that it inherits all of its methods.
     NOTE: the delegate must be an instance of a new-style class (i.e. it inherits from object or a class that does)
     '''
-    self.delegate = delegate and dynamically_extend(delegate, self.__class__) or None
+    self._delegate = delegate and dynamically_extend(delegate, self.__class__) or None
 
   def pre_task(self, *args):
     pass
@@ -33,7 +33,7 @@ class Task(object):
     '''Tasks should be executed by calling them rather than calling perform directly.'''
     # Decide on a target for task calls. This is so that tasks don't have to inherit from task directly, 
     # but can implement the hooks necessary to be considered a task when passed in as delegates.
-    target = self.delegate or self
+    target = (hasattr(self, '_delegate') and self._delegate) or self
     target.pre_task()
     self.result = target.perform(*args, **kwargs)
     target.post_task()
@@ -45,7 +45,8 @@ class CompilationTask(Task):
   def precompilation(self):
     '''Executed before compilation of commits begin.'''
     pass
-  pre_task = precompilation # hook the precompilation function as Task's pre_task callback.
+  
+  def pre_task(self): self.precompilation() # hook the precompilation function as Task's pre_task callback.
 
   def precompile(self, commit):
     '''Executed before the given commit is compiled.'''
@@ -77,6 +78,10 @@ class CompilationTask(Task):
     '''Performs the actual compilation of the commit. (This is the one you definitely have to implement)'''
     return None
 
+  def existing_output_for(self, commit):
+    '''Return existing output for a commit (if any)'''
+    return None
+
   def postcompile(self, commit):
     '''Executed after the commit has been compiled.'''
     pass
@@ -84,7 +89,8 @@ class CompilationTask(Task):
   def postcompilation(self):
     '''Performed after all compilation has occurred'''
     pass
-  post_task = postcompilation # hook the postcompilation function as Task's post_task callback.
+  
+  def post_task(self): self.postcompilation() # hook the postcompilation function as Task's post_task callback.
 
   def should_ignore_exception(self, e):
     '''Return whether or not this exception occurring during compilation should be ignored.'''
@@ -109,6 +115,9 @@ class CompilationTask(Task):
       print >> f, "Exception:", repr(exception)
     f.close()
 
+  def handle_interrupt(self):
+    pass
+
   def log(self, msg):
     try:
       Task.log("[COMPILATION][{0}]: {1}".format(self.__class__.__name__, msg))
@@ -132,7 +141,14 @@ class CompilationTask(Task):
           self.precompile(commit)
           results[commit] = self.compile(commit)
           self.postcompile(commit)
-          self.log("|====|\n")
+        else:
+          results[commit] = self.existing_output_for(commit)
+          self.log("Skipping " + str(commit))
+        self.log("|====|\n")
+      except KeyboardInterrupt:
+        self.log("Interrupted")
+        self.handle_interrupt()
+        raise
       except Exception as e:
         if self.should_ignore_exception(e):
           self.log("Ignoring exception: {0}".format(e))
@@ -146,14 +162,16 @@ class LinkingTask(Task):
 
   def prelinkage(self):
     pass
-  pre_task = prelinkage
+  
+  def pre_task(self): self.prelinkage()
 
   def link(self, compilation_output, linking_options):
     return None
 
   def postlinkage(self):
     pass
-  post_task = postlinkage
+
+  def post_task(self): self.postlinkage()
 
   def log(self, msg):
     Task.log("[LINKING][{0}]: {1}".format(self.__class__.__name__, str(msg)))

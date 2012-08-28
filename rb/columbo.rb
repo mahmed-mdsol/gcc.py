@@ -5,7 +5,7 @@ require 'builder/xchar'
 gem "user-choices"
 require "user-choices"
 
-module Shamus
+ class Shamus
   class ChoicesCommand < UserChoices::Command 
     include UserChoices
 
@@ -148,9 +148,9 @@ module Shamus
     public
     def after_step(stepthing)
       case stepthing
-      when Cucumber::Ast::Step
+      when ::Cucumber::Ast::Step
         # outline step; nothing invoked. do nothing - the AfterStep deals with outline steps on each row 
-      when Cucumber::Ast::StepInvocation
+      when ::Cucumber::Ast::StepInvocation
         if stepthing.shamus_snapshot?
           step_invocation = stepthing # Cucumber::Ast::StepInvocation
           step = step_invocation.instance_eval{ @step } # Cucumber::Ast::Step
@@ -166,12 +166,12 @@ module Shamus
     end
   end
 end
-class Cucumber::Ast::OutlineTable::ExampleRow
+class ::Cucumber::Ast::OutlineTable::ExampleRow
   def shamus_snapshot_filename(index)
     "example_row_line_#{line}_step_num_#{index}"
   end
 end
-class Cucumber::Ast::StepInvocation
+class ::Cucumber::Ast::StepInvocation
   # used by shamus to keep track of what steps have been run, since cucumber doesn't care to share this information 
   attr_accessor :seen_by_shamus
 
@@ -231,11 +231,11 @@ module Shamus::HasFeatureID
     end
   end
 end
-[Cucumber::Ast::ScenarioOutline, Cucumber::Ast::Scenario].each do |klass|
+[::Cucumber::Ast::ScenarioOutline, ::Cucumber::Ast::Scenario].each do |klass|
   klass.send(:include, Shamus::HasFeatureID)
 end
 
-module Shamus
+class Shamus
   # takes a snapshot (either a screenshot or the current page html) to the given file path and basename. 
   # 
   # if taking a screenshot, this will append the appropriate image extension to the argument; if saving
@@ -298,7 +298,7 @@ end
 # this takes a snapshot for an ExampleRow step 
 AfterStep do |stepthing|
   case stepthing
-  when Cucumber::Ast::OutlineTable::ExampleRow
+  when ::Cucumber::Ast::OutlineTable::ExampleRow
     step_invocation=nil
     step_invocation_index=nil
     stepthing.instance_eval{@step_invocations}.to_a.each_with_index do |a_step_invocation, a_step_invocation_index|
@@ -314,9 +314,9 @@ AfterStep do |stepthing|
       output_dir_base = File.join(screenshot_dir, stepthing.shamus_snapshot_filename(step_invocation_index))
       Shamus.try_snapshot(output_dir_base, self)
     end
-  when Cucumber::Ast::Scenario
+  when ::Cucumber::Ast::Scenario
     # this is a non-outline step invocation - do nothing; the formatter's #after_step deals with this 
-  when Cucumber::Ast::ScenarioOutline
+  when ::Cucumber::Ast::ScenarioOutline
     # this is a background do nothing
   else
     # don't think anything else gets passed to AfterStep, but catch this in case
