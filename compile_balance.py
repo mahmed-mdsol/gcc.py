@@ -5,12 +5,13 @@ from png_movie_linker import PngMovieLinker
 import subprocess
 import os
 import colorama
+import sys
 colorama.init()
 
 #######################################################################################################################
 ## CONFIGS ##
 #######################################################################################################################
-REPO = '../balance_gcc'
+REPO = len(sys.argv) and sys.argv[1] or '../balance_gcc'
 ENV = dict(RAILS_ENV='test')
 COLUMBO = 'rb/columbo.rb'
 
@@ -92,10 +93,12 @@ class CucumberScreenshots(CompilationTask):
 
   def precompilation(self):
     self.failed_commits = []
+    '''
     subprocess.call("""
         bundle install
         RAILS_ENV=test bundle exec rake db:drop db:create --trace
       """, shell=True, cwd='../balance')
+    '''
     CompilationTask.precompilation(self)
 
   def perform(self, commit_targets, *args, **kwargs):
@@ -137,6 +140,7 @@ class CucumberScreenshots(CompilationTask):
   postcompilation  = print_failed_commits
 
   def compile(self, commit):
+    '''
     self.log("Prepping working directory")
     log_file = os.path.join(self.output_directory_for(commit), "compilation.log")
     output_log = open(log_file, 'w')
@@ -179,7 +183,7 @@ class CucumberScreenshots(CompilationTask):
       self.log(colorama.Fore.RED + 'Cuke fail. :( [{0}]'.format(repr(e)) + colorama.Fore.RESET)
       self.mark_incomplete(commit, e)
       self.failed_commits.append(commit)
-
+  '''
     return self.existing_output_for(commit)
 
 class PerScenarioMovieLinker(LinkingTask):
@@ -228,7 +232,7 @@ class PerScenarioMovieLinker(LinkingTask):
         subprocess.check_call('cp {0} {1}'.format(os.path.join(scenario[1:], f), image_format % i), shell=True)
         i += 1
 
-    cmd = "ffmpeg -qscale 5 -i {0} -i {1} -vf scale=\"854:trunc(ow/a/2)*2\" -r {2} {3}".format(image_format, AUDIO_FILE, FRAME_RATE, MOVIE_FILE)
+    cmd = "ffmpeg -qscale 5 -i {0} {1} -vf scale=\"854:trunc(ow/a/2)*2\" -r {2} {3}".format(image_format, AUDIO_FILE and ("-i " + AUDIO_FILE) or "", FRAME_RATE, MOVIE_FILE)
     
     self.log("Linking videos with {0}".format(cmd))
     subprocess.check_call(cmd, shell=True)
